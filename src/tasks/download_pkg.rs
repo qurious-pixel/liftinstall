@@ -1,15 +1,20 @@
 //! Downloads a package into memory.
 
-use installer::InstallerFramework;
+use crate::installer::InstallerFramework;
 
-use tasks::check_authorization::CheckAuthorizationTask;
-use tasks::{Task, TaskDependency, TaskMessage, TaskOrdering, TaskParamType};
+use crate::tasks::Task;
+use crate::tasks::TaskDependency;
+use crate::tasks::TaskMessage;
+use crate::tasks::TaskOrdering;
+use crate::tasks::TaskParamType;
 
-use http::stream_file;
+use crate::tasks::resolver::ResolvePackageTask;
 
-use number_prefix::{NumberPrefix, Prefixed, Standalone};
+use crate::http::stream_file;
 
-use logging::LoggingErrors;
+use number_prefix::NumberPrefix::{self, Prefixed, Standalone};
+
+use crate::logging::LoggingErrors;
 
 pub struct DownloadPackageTask {
     pub name: String,
@@ -24,18 +29,11 @@ impl Task for DownloadPackageTask {
     ) -> Result<TaskParamType, String> {
         assert_eq!(input.len(), 1);
 
-        let file = input.pop().log_expect("Download Package Task should have input from resolver!");
-        let (version, file, auth) = match file {
-            TaskParamType::Authentication(v, f, auth) => (v, f, auth),
+        let file = input.pop().log_expect("Should have input from resolver!");
+        let (version, file) = match file {
+            TaskParamType::File(v, f) => (v, f),
             _ => return Err("Unexpected param type to download package".to_string()),
         };
-
-        // TODO: move this back below checking for latest version after testing is done
-        if file.requires_authorization && auth.is_none() {
-            info!("Authorization required to update this package!");
-            messenger(&TaskMessage::AuthorizationRequired("AuthorizationRequired"));
-            return Ok(TaskParamType::Break);
-        }
 
         // Check to see if this is the newest file available already
         for element in &context.database.packages {
@@ -56,7 +54,7 @@ impl Task for DownloadPackageTask {
         let mut downloaded = 0;
         let mut data_storage: Vec<u8> = Vec::new();
 
-        stream_file(&file.url, auth, |data, size| {
+        stream_file(&file.url, |data, size| {
             {
                 data_storage.extend_from_slice(&data);
             }
@@ -94,7 +92,7 @@ impl Task for DownloadPackageTask {
     fn dependencies(&self) -> Vec<TaskDependency> {
         vec![TaskDependency::build(
             TaskOrdering::Pre,
-            Box::new(CheckAuthorizationTask {
+            Box::new(ResolvePackageTask {
                 name: self.name.clone(),
             }),
         )]

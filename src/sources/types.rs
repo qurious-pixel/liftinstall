@@ -66,7 +66,6 @@ impl Ord for Version {
 pub struct File {
     pub name: String,
     pub url: String,
-    pub requires_authorization: bool,
 }
 
 impl File {}

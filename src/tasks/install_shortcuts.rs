@@ -1,17 +1,17 @@
 //! Generates shortcuts for a specified file.
 
-use installer::InstallerFramework;
+use crate::installer::InstallerFramework;
 
-use tasks::Task;
-use tasks::TaskDependency;
-use tasks::TaskMessage;
-use tasks::TaskParamType;
+use crate::tasks::Task;
+use crate::tasks::TaskDependency;
+use crate::tasks::TaskMessage;
+use crate::tasks::TaskParamType;
 
-use config::PackageDescription;
+use crate::config::PackageDescription;
 
-use logging::LoggingErrors;
+use crate::logging::LoggingErrors;
 
-use native::create_shortcut;
+use crate::native::create_shortcut;
 
 pub struct InstallShortcutsTask {
     pub name: String,
@@ -85,14 +85,6 @@ impl Task for InstallShortcutsTask {
                 &starting_dir,
                 exe_path,
             )?);
-        }
-
-        // Update the installed packages shortcuts information in the database
-        let packages = &mut context.database.packages;
-        for pack in packages {
-            if pack.name == self.name {
-                pack.shortcuts.append(&mut installed_files);
-            }
         }
 
         Ok(TaskParamType::GeneratedShortcuts(installed_files))

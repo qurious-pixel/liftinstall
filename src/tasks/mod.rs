@@ -4,21 +4,18 @@
 use std::fmt;
 use std::fmt::Display;
 
-use installer::InstallerFramework;
+use crate::installer::InstallerFramework;
 
-use sources::types::File;
-use sources::types::Version;
+use crate::sources::types::File;
+use crate::sources::types::Version;
 
-pub mod check_authorization;
 pub mod download_pkg;
 pub mod ensure_only_instance;
 pub mod install;
-pub mod install_desktop_shortcut;
 pub mod install_dir;
 pub mod install_global_shortcut;
 pub mod install_pkg;
 pub mod install_shortcuts;
-pub mod launch_installed_on_exit;
 pub mod resolver;
 pub mod save_database;
 pub mod save_executable;
@@ -32,8 +29,6 @@ pub enum TaskParamType {
     None,
     /// Metadata about a file
     File(Version, File),
-    /// Authentication token for a package
-    Authentication(Version, File, Option<String>),
     /// Downloaded contents of a file
     FileContents(Version, File, Vec<u8>),
     /// List of shortcuts that have been generated
@@ -67,7 +62,6 @@ impl TaskDependency {
 /// A message from a task.
 pub enum TaskMessage<'a> {
     DisplayMessage(&'a str, f64),
-    AuthorizationRequired(&'a str),
     PackageInstalled,
 }
 

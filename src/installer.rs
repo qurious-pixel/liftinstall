@@ -21,28 +21,28 @@ use std::io::Cursor;
 use std::process::Command;
 use std::process::{exit, Stdio};
 
-use config::BaseAttributes;
-use config::Config;
+use crate::config::BaseAttributes;
+use crate::config::Config;
 
-use sources::types::Version;
+use crate::sources::types::Version;
 
-use tasks::install::InstallTask;
-use tasks::uninstall::UninstallTask;
-use tasks::uninstall_global_shortcut::UninstallGlobalShortcutsTask;
-use tasks::DependencyTree;
-use tasks::TaskMessage;
+use crate::tasks::install::InstallTask;
+use crate::tasks::uninstall::UninstallTask;
+use crate::tasks::uninstall_global_shortcut::UninstallGlobalShortcutsTask;
+use crate::tasks::DependencyTree;
+use crate::tasks::TaskMessage;
 
-use logging::LoggingErrors;
+use crate::logging::LoggingErrors;
 
 use dirs::home_dir;
 
 use std::fs::remove_file;
 
-use http;
+use crate::http;
 
-use number_prefix::{NumberPrefix, Prefixed, Standalone};
+use number_prefix::NumberPrefix::{self, Prefixed, Standalone};
 
-use native;
+use crate::native;
 
 /// A message thrown during the installation of packages.
 #[derive(Serialize)]
@@ -50,16 +50,7 @@ pub enum InstallMessage {
     Status(String, f64),
     PackageInstalled,
     Error(String),
-    AuthorizationRequired(String),
     EOF,
-}
-
-#[derive(Serialize, Deserialize, Default, Clone)]
-pub struct Credentials {
-    #[serde(default)]
-    pub username: String,
-    #[serde(default)]
-    pub token: String,
 }
 
 /// Metadata about the current installation itself.
@@ -67,8 +58,6 @@ pub struct Credentials {
 pub struct InstallationDatabase {
     pub packages: Vec<LocalInstallation>,
     pub shortcuts: Vec<String>,
-    #[serde(default)]
-    pub credentials: Credentials,
 }
 
 impl InstallationDatabase {
@@ -77,10 +66,6 @@ impl InstallationDatabase {
         InstallationDatabase {
             packages: Vec::new(),
             shortcuts: Vec::new(),
-            credentials: Credentials {
-                username: String::new(),
-                token: String::new(),
-            },
         }
     }
 }
@@ -129,12 +114,6 @@ macro_rules! declare_messenger_callback {
                     error!("Failed to submit queue message: {:?}", v);
                 }
             }
-            TaskMessage::AuthorizationRequired(msg) => {
-                if let Err(v) = $target.send(InstallMessage::AuthorizationRequired(msg.to_string()))
-                {
-                    error!("Failed to submit queue message: {:?}", v);
-                }
-            }
             TaskMessage::PackageInstalled => {
                 if let Err(v) = $target.send(InstallMessage::PackageInstalled) {
                     error!("Failed to submit queue message: {:?}", v);
@@ -179,7 +158,6 @@ impl InstallerFramework {
         items: Vec<String>,
         messages: &Sender<InstallMessage>,
         fresh_install: bool,
-        create_desktop_shortcuts: bool,
     ) -> Result<(), String> {
         info!(
             "Framework: Installing {:?} to {:?}",
@@ -208,7 +186,6 @@ impl InstallerFramework {
             items,
             uninstall_items,
             fresh_install,
-            create_desktop_shortcuts,
         });
 
         let mut tree = DependencyTree::build(task);
@@ -275,7 +252,7 @@ impl InstallerFramework {
         let mut downloaded = 0;
         let mut data_storage: Vec<u8> = Vec::new();
 
-        http::stream_file(tool, None, |data, size| {
+        http::stream_file(tool, |data, size| {
             {
                 data_storage.extend_from_slice(&data);
             }

@@ -4,7 +4,7 @@
 
 use web_view::Content;
 
-use logging::LoggingErrors;
+use crate::logging::LoggingErrors;
 
 use log::Level;
 
@@ -16,8 +16,8 @@ enum CallbackType {
 }
 
 /// Starts the main web UI. Will return when UI is closed.
-pub fn start_ui(app_name: &str, http_address: &str, _is_launcher: bool) {
-    let size = (1024, 550);
+pub fn start_ui(app_name: &str, http_address: &str, is_launcher: bool) {
+    let size = if is_launcher { (600, 300) } else { (1024, 500) };
 
     info!("Spawning web view instance");
 
@@ -45,7 +45,7 @@ pub fn start_ui(app_name: &str, http_address: &str, _is_launcher: bool) {
                         if new_path.to_string_lossy().len() > 0 {
                             let result = serde_json::to_string(&new_path)
                                 .log_expect("Unable to serialize response");
-                            let command = format!("{}({});", callback_name, result);
+                            let command = format!("window.{}({});", callback_name, result);
                             debug!("Injecting response: {}", command);
                             cb_result = wv.eval(&command);
                         }
