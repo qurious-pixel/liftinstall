@@ -12,16 +12,16 @@ matrix:
           - $TRAVIS_BUILD_DIR/ui/node_modules
       script: docker run -v $HOME/.cargo:/root/.cargo -v $(pwd):/liftinstall rust:1 /bin/bash -ex /liftinstall/.travis/build.sh
 
-    - os: osx
-      language: rust
-      cache: cargo
-      osx_image: xcode10
-      script: brew install yarn && cargo build
+#    - os: osx
+#      language: rust
+#      cache: cargo
+#      osx_image: xcode10
+#      script: brew install yarn && cargo build
 
-    - os: windows
-      language: rust
-      cache: cargo
-      script: 
-        - choco install nodejs yarn
-        - export PATH="$PROGRAMFILES/nodejs/:$PROGRAMFILES (x86)/Yarn/bin/:$PATH"
-        - cargo build
+#    - os: windows
+#      language: rust
+#      cache: cargo
+#      script: 
+#        - choco install nodejs yarn
+#        - export PATH="$PROGRAMFILES/nodejs/:$PROGRAMFILES (x86)/Yarn/bin/:$PATH"
+#        - cargo build
