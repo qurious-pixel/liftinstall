@@ -1,12 +1,24 @@
 import Vue from 'vue'
 import App from './App.vue'
 import router from './router'
-import { ajax, stream_ajax } from './helpers'
+import axios from 'axios'
+import VueAxios from 'vue-axios'
+import VueI18n from 'vue-i18n'
+import { stream_ajax as streamAjax } from './helpers'
 import Buefy from 'buefy'
+import messages from './locales/messages.json'
 import 'buefy/dist/buefy.css'
 
 Vue.config.productionTip = false
 Vue.use(Buefy)
+Vue.use(VueI18n)
+Vue.use(VueAxios, axios)
+
+export const i18n = new VueI18n({
+  locale: 'en', // set locale
+  fallbackLocale: 'en',
+  messages // set locale messages
+})
 
 // Borrowed from http://tobyho.com/2012/07/27/taking-over-console-log/
 function intercept (method) {
@@ -24,18 +36,18 @@ function intercept (method) {
 }
 
 // See if we have access to the JSON interface
-var has_external_interface = false;
+var hasExternalInterface = false
 try {
   window.external.invoke(JSON.stringify({
     Test: {}
   }))
-  has_external_interface = true;
+  hasExternalInterface = true
 } catch (e) {
-  console.warn("Running without JSON interface - unexpected behaviour may occur!")
+  console.warn('Running without JSON interface - unexpected behaviour may occur!')
 }
 
 // Overwrite loggers with the logging backend
-if (has_external_interface) {
+if (hasExternalInterface) {
   window.onerror = function (msg, url, line) {
     window.external.invoke(
       JSON.stringify({
@@ -54,7 +66,7 @@ if (has_external_interface) {
 }
 
 // Disable F5
-function disable_shortcuts (e) {
+function disableShortcuts (e) {
   switch (e.keyCode) {
     case 116: // F5
       e.preventDefault()
@@ -63,34 +75,34 @@ function disable_shortcuts (e) {
 }
 
 // Check to see if we need to enable dark mode
-ajax('/api/dark-mode', function (enable) {
-  if (enable) {
+axios.get('/api/dark-mode').then(function (resp) {
+  if (resp.data === true) {
     document.body.classList.add('has-background-black-ter')
   }
 })
 
-window.addEventListener('keydown', disable_shortcuts)
+window.addEventListener('keydown', disableShortcuts)
 
-document.getElementById('window-title').innerText =
-  base_attributes.name + ' Installer'
+axios.get('/api/attrs').then(function (resp) {
+  document.getElementById('window-title').innerText =
+    i18n.t('app.window_title', { name: resp.data.name })
+}).catch(function (err) {
+  console.error(err)
+})
 
 function selectFileCallback (name) {
   app.install_location = name
 }
 
+window.selectFileCallback = selectFileCallback
+
 var app = new Vue({
+  i18n: i18n,
   router: router,
   data: {
-    attrs: base_attributes,
+    attrs: {},
     config: {},
     install_location: '',
-    username: '',
-    token: '',
-    jwt_token: {},
-    is_authenticated: false,
-    is_linked: false,
-    is_subscribed: false,
-    has_reward_tier: false,
     // If the option to pick an install location should be provided
     show_install_location: true,
     metadata: {
@@ -102,54 +114,33 @@ var app = new Vue({
   render: function (caller) {
     return caller(App)
   },
+  mounted: function () {
+    axios.get('/api/attrs').then(function (resp) {
+      app.attrs = resp.data
+    }).catch(function (err) {
+      console.error(err)
+    })
+  },
   methods: {
     exit: function () {
-      ajax(
-        '/api/exit',
-        function () {},
-        function (msg) {
-          var search_location = app.metadata.install_path.length > 0 ? app.metadata.install_path :
-            "the location where this installer is";
+      axios.get('/api/exit').catch(function (msg) {
+        var searchLocation = (app.metadata.install_path && app.metadata.install_path.length > 0) ? app.metadata.install_path
+          : i18n.t('error.location_unknown')
 
-          app.$router.replace({ name: 'showerr', params: { msg: msg +
-                '\n\nPlease upload the log file (in ' + search_location + ') to ' +
-                'the ' + app.attrs.name + ' team'
-          }});
-        },
-        {} // pass in nothing to cause `ajax` to post instead of get
-      )
-    },
-    check_authentication: function (success, error) {
-      var that = this;
-      var app = this.$root;
-
-      app.ajax('/api/check-auth', function (auth) {
-        app.$data.username = auth.username;
-        app.$data.token = auth.token;
-        that.jwt_token = auth.jwt_token;
-        that.is_authenticated = Object.keys(that.jwt_token).length !== 0 && that.jwt_token.constructor === Object;
-        if (that.is_authenticated) {
-          // Give all permissions to vip roles
-          that.is_linked = that.jwt_token.isPatreonAccountLinked;
-          that.is_subscribed = that.jwt_token.isPatreonSubscriptionActive;
-          that.has_reward_tier = that.jwt_token.releaseChannels.indexOf("early-access") > -1;
-        }
-        if (success) {
-          success();
-        }
-      }, function (e) {
-        if (error) {
-          error();
-        }
-      }, {
-        "username": app.$data.username,
-        "token": app.$data.token
+        app.$router.replace({
+          name: 'showerr',
+          params: {
+            msg: i18n.t('error.exit_error', {
+              name: app.attrs.name,
+              path: searchLocation,
+              msg: msg
+            })
+          }
+        })
       })
     },
-
-    ajax: ajax,
-    stream_ajax: stream_ajax
+    stream_ajax: streamAjax
   }
 }).$mount('#app')
 
-console.log("Vue started")
+console.log('Vue started')

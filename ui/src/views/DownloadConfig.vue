@@ -1,6 +1,6 @@
 <template>
     <div class="column has-padding">
-            <h4 class="subtitle">Downloading config...</h4>
+            <h4 class="subtitle">{{ $t('download_config.download_config') }}</h4>
 
             <br />
             <progress class="progress is-info is-medium" max="100">
@@ -18,38 +18,41 @@ export default {
   methods: {
     download_install_status: function () {
       var that = this
-      this.$root.ajax('/api/installation-status', function (e) {
-        that.$root.metadata = e
+      this.$http.get('/api/installation-status').then(function (resp) {
+        that.$root.metadata = resp.data
 
         that.download_config()
       })
     },
     download_config: function () {
       var that = this
-      this.$root.ajax('/api/config', function (e) {
-        that.$root.config = e
+      this.$http.get('/api/config').then(function (resp) {
+        that.$root.config = resp.data
 
-        // Update the updater if needed
-        if (that.$root.config.new_tool) {
-          that.$router.push('/install/updater/false')
-          return
-        }
-
-        that.$root.check_authentication(that.choose_next_state, that.choose_next_state)
-      }, function (e) {
-        console.error('Got error while downloading config: ' + e)
+        that.choose_next_state()
+      }).catch(function (e) {
+        console.error('Got error while downloading config: ' +
+                    e)
 
         if (that.$root.metadata.is_launcher) {
           // Just launch the target application
           that.$root.exit()
         } else {
-          that.$router.replace({ name: 'showerr',
-            params: { msg: 'Got error while downloading config: ' + e } })
+          that.$router.replace({
+            name: 'showerr',
+            params: { msg: that.$i18n.t('download_config.error_download_config', { msg: e }) }
+          })
         }
       })
     },
     choose_next_state: function () {
       var app = this.$root
+      // Update the updater if needed
+      if (app.config.new_tool) {
+        this.$router.push('/install/updater')
+        return
+      }
+
       if (app.metadata.preexisting_install) {
         app.install_location = app.metadata.install_path
 
@@ -69,8 +72,11 @@ export default {
           }
         }
 
-        this.$router.replace({ name: 'migrate',
-          params: { next: app.metadata.is_launcher ? '/install/regular/false' : '/modify' } })
+        if (app.metadata.is_launcher) {
+          this.$router.replace('/install/regular')
+        } else {
+          this.$router.replace('/modify')
+        }
       } else {
         for (var x = 0; x < app.config.packages.length; x++) {
           app.config.packages[x].installed = false
@@ -78,14 +84,13 @@ export default {
 
         // Need to do a bit more digging to get at the
         // install location.
-        this.$root.ajax('/api/default-path', function (e) {
-          if (e.path != null) {
-            app.install_location = e.path
+        this.$http.get('/api/default-path').then(function (resp) {
+          if (resp.data.path != null) {
+            app.install_location = resp.data.path
           }
         })
 
-        this.$router.replace({ name: 'migrate',
-          params: { next: '/packages' } })
+        this.$router.replace('/packages')
       }
     }
   }
