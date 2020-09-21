@@ -12,4 +12,4 @@ apt-get install -y libwebkit2gtk-4.0-dev libssl-dev nodejs yarn
 
 yarn --cwd ui
 
-cargo build
+cargo build --release
